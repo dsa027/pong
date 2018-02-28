@@ -1,8 +1,9 @@
 (function() {
   var canvas = null;
   var context = null;
+  var animate = null;
   var pPaddle, cPaddle;
-  var cWidth = 480, cHeight = 480;
+  var cWidth = 480, cHeight = 300;
 
   class Paddle {
     constructor(x, y) {
@@ -19,8 +20,15 @@
     }
 
     move(x, y) {
-        this.x = x
-        this.y = y
+      context.clearRect(this.x, this.y, Paddle.width(), Paddle.height());
+      this.x += x;
+      this.y += y;
+
+      if (this.y < 0) this.y = 0
+      else if (this.y > cHeight - Paddle.height()) this.y = cHeight - Paddle.height();
+
+      var el = document.getElementById("xyz");
+      el.innerHTML = "coord: " + this.x + ", " + this.y;
     }
 
     render() {
@@ -40,8 +48,8 @@
     }
 
     move(x, y) {
-        this.x = x;
-        this.y = y;
+      this.x += x;
+      this.y += y;
     }
 
     render() {
@@ -60,15 +68,32 @@
   }
 
   document.addEventListener("DOMContentLoaded", function(event) {
+    function step() {
+      pPaddle.render();
+      cPaddle.render();
+      ball.render();
+      requestAnimationFrame(step);
+    }
+
     canvas = document.getElementById("canvas");
     context = canvas.getContext("2d");
+    window.requestAnimationFrame(step) || function(step) {
+      window.setTimeout(step, 1000/60);
+    }
+    window.addEventListener('keydown', function(event) {
+      switch(event.keyCode) {
+        case 38: //up
+          pPaddle.move(0, -5);
+          break;
+        case 40: //down
+          pPaddle.move(0, 5);
+          break;
+      }
+    });
+    requestAnimationFrame(step);
 
     pPaddle = new Paddle(0, (cHeight-Paddle.height())/2);
     cPaddle = new Paddle(cWidth-Paddle.width(), (cHeight-Paddle.height())/2);
     ball = new Ball((cWidth-Ball.radius()*2)/2, (cHeight-Ball.radius()*2)/2);
-
-    pPaddle.render();
-    cPaddle.render();
-    ball.render();
   });
 })();
