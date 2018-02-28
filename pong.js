@@ -67,10 +67,8 @@
     cPaddle = new Paddle(cWidth-Paddle.width(), (cHeight-Paddle.height())/2);
     ball = new Ball((cWidth-Ball.radius()*2)/2, (cHeight-Ball.radius()*2)/2);
 
-    document.getElementById("canvas").addEventListener('click', function() {
-      pPaddle.render();
-      cPaddle.render();
-      ball.render();
-    });
+    pPaddle.render();
+    cPaddle.render();
+    ball.render();
   });
 })();
