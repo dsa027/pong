@@ -20,7 +20,7 @@
     }
 
     move(x, y) {
-      context.clearRect(this.x, this.y, Paddle.width(), Paddle.height());
+      context.clearRect(this.x-1, this.y-1, Paddle.width()+2, Paddle.height()+2);
       this.x += x;
       this.y += y;
 
