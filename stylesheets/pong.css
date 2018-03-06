@@ -1,0 +1,36 @@
+* {
+  font-family: sans-serif;
+}
+#canvas {
+  border: 1px solid black;
+}
+#title {
+  font-size: 48px;
+  color: darkblue;
+  text-align: center;
+}
+#canvas {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+}
+#score {
+  margin-top: 16px;
+  text-align: center;
+  font-weight: bold;
+  color: darkblue;
+}
+#you-won {
+  font-size: 56px;
+  text-align: center;
+  font-weight: bold;
+  color: green;
+}
+#you-lost {
+  font-size: 56px;
+  text-align: center;
+  font-weight: bold;
+  color: red;
+}
