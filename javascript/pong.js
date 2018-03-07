@@ -1,21 +1,24 @@
 (function() {
   var canvas = null;
   var context = null;
-  var animate = null;
-  var collisions = null;
-  var background = null;
-  var pPaddle, cPaddle, ball;
-  var ballSprite, paddleSprite;
-  var cWidth = 480, cHeight = 300;
-  var stop = true;
-  var gameOver = false;
-  var flashInterval = 30;
-  var flashing = false;
-  var flashCount = 0;
+  var canvasRect = null; // dims where the canvas is on the page
+  var collisions = null;  // collision detection system
+  var background = null;  // background object
+  var pPaddle, cPaddle, ball; // game playing elements
+  var pKbd = false, computer = true; // using kbd=true or mouse=false; person/computer
+  var ballSprite, paddleSprite, pMouseSprite, pKbdSprite,
+      cMouseSprite, cKbdSprite, playerSprite, computerSprite; // game sprites
+  var cWidth = 480, cHeight = 300; // screen dimesions
+  var stop = true; // stop play (don't animate moving objects)
+  var gameOver = false; //
+  var flashInterval = 30; // flashing text at this fps
+  var flashing = true;  // are we showing text now?
+  var flashCount = 0; // how long we have been within a flashInterval
+  var lastY = -1; // for mouse, where we were at last mouse move on y axis
 
-  var Side = {"COMPUTER": 'computer', 'PLAYER': 'player', 'NONE': 'none'}
-  var cStringWidth = -1;
-  var maxScore = 11;
+  var Side = {'COMPUTER': 'computer', 'PLAYER': 'player', 'NONE': 'none'}
+  var Input = {'MOUSE': 'mouse', 'KBD': 'kbd', 'NONE': 'none'}
+  var maxScore = 11; //
 
   //////////////////
   class Background {
@@ -28,12 +31,17 @@
     }
 
     render() {
-      context.drawImage(
-        this.sprite.image,
-        0,
-        0,
-        this.sprite.width,
-        this.sprite.height);
+      // background sprite
+      context.drawImage(this.sprite.image, 0, 0, this.sprite.width, this.sprite.height);
+
+      // player1/player2 or player/computer
+      this.showTitles();
+
+      // player2 or computer
+      this.showVsIcons();
+
+      // mouse/kbd
+      this.showInputIcons();
 
       this.showScore();
 
@@ -43,6 +51,77 @@
       else if (stop) {
         this.showClickToStart();
       }
+    }
+
+    getKMPad() {
+      return 15;
+    }
+
+    showVsIcons() {
+      var fontSize = 32;
+      context.font = `${fontSize}px sans-serif`;
+      context.fillStyle = 'white';
+
+      var p = this.getVsDims();
+      this.selectVsImage(computerSprite.image, playerSprite.image, computer);
+
+      context.drawImage(computerSprite.image, p.cx, p.cy, p.cw, p.ch);
+      context.fillText("/", p.px-7, p.py+fontSize-8);
+      context.drawImage(playerSprite.image, p.px, p.py, p.pw, p.ph);
+    }
+
+    selectVsImage(imgComputer, imgPlayer, computer) {
+      imgComputer.src = computer ? 'images/computer_on.png' : 'images/computer_off.png';
+      imgPlayer.src = computer ? 'images/player_off.png' : 'images/player_on.png';
+    }
+
+    getVsDims() {
+      return {
+        cx: cWidth*5/6, cy: 3, cw: computerSprite.width, ch: computerSprite.height,
+        px: cWidth*5/6+playerSprite.width+12, py: 3, pw: playerSprite.width, ph: playerSprite.height
+      }
+    }
+
+    showKbdMouse(side, p) {
+      var fontSize = 32;
+      context.font = `${fontSize}px sans-serif`;
+      context.fillStyle = 'white';
+
+      var mouse = (side === Side.PLAYER) ? pMouseSprite.image : cMouseSprite.image;
+      var kbd = (side === Side.PLAYER) ? pKbdSprite.image : cKbdSprite.image;
+
+      this.selectKbdMouseImage(mouse, kbd, (side === Side.PLAYER ? pKbd : !pKbd));
+
+      context.drawImage(mouse, p.mx, p.my, p.mw, p.mh);
+      context.fillText("/", p.mx+p.mw+1, p.my+p.mh);
+      context.drawImage(kbd, p.kx, p.ky, p.kw, p.kh);
+    }
+
+    getPlayerInputDims() {
+      return {
+        mx: cWidth/6, my: cHeight - pMouseSprite.height - 5, mw: pMouseSprite.width, mh: pMouseSprite.height,
+        kx: cWidth/6+this.getKMPad()+pMouseSprite.width, ky: cHeight - pKbdSprite.height - 5, kw: pKbdSprite.width, kh: pKbdSprite.height
+      };
+    }
+    getComputerInputDims() {
+      return {
+        mx: cWidth*4/6, my: cHeight - cMouseSprite.height - 5, mw: cMouseSprite.width, mh: cMouseSprite.height,
+        kx: cWidth*4/6+this.getKMPad()+cMouseSprite.width, ky: cHeight - cKbdSprite.height - 5, kw: cKbdSprite.width, kh: cKbdSprite.height
+      };
+    }
+
+    showInputIcons() {
+      // Player
+      var p = this.getPlayerInputDims();
+      this.showKbdMouse(Side.PLAYER, p);
+      // Computer
+      var p = this.getComputerInputDims();
+      this.showKbdMouse(Side.COMPUTER, p);
+    }
+
+    selectKbdMouseImage(imgMouse, imgKbd, kbd) {
+      imgKbd.src = kbd ? 'images/kbd_on.png' : 'images/kbd_off.png';
+      imgMouse.src = kbd ? 'images/mouse_off.png' : 'images/mouse_on.png';
     }
 
     showGameOver() {
@@ -100,11 +179,16 @@
       context.fillStyle = cColor;
       var x = context.measureText(cPaddle.getScore()).width;
       context.fillText(cPaddle.getScore(), cWidth-x-25, cHeight-20);
+    }
 
-      if (cStringWidth === -1) cStringWidth = context.measureText("Computer").width;
+    showTitles() {
+      context.font = '30px Arial';
       context.fillStyle = 'white';
-      context.fillText("Player", 25, 50);
-      context.fillText("Computer", cWidth-cStringWidth-25, 50);
+
+      var cStringWidth = context.measureText(computer ? "Computer" : "Player 2").width;
+
+      context.fillText(computer ? "Player" : "Player 1", 25, 50);
+      context.fillText(computer ? "Computer" : "Player 2", cWidth-cStringWidth-25, 50);
     }
   }
 
@@ -130,11 +214,14 @@
       background.whichSideScored(side);
       if (this.score >= maxScore) {
         gameOver = true;
+        var elem = document.getElementById("you-won");
         if (side === Side.PLAYER) {
-          document.getElementById("you-won").style.display = "block";
+          elem.innerHTML = computer ? "You Won!!!" : "Player 1 Won!!!";
+          elem.style.display = "block";
         }
         else {
-          document.getElementById("you-lost").style.display = "block";
+          elem.innerHTML = computer ? "You Lost!!!" : "Player 2 Won!!!";
+          elem.style.display = "block";
         }
       }
     }
@@ -178,6 +265,9 @@
     moveBy() { return 1; }
 
     update() {
+      // if player2, don't update computer paddle
+      if (!computer) return;
+
       var diff = Math.abs(this.y - ball.y);
       var y = this.y + Paddle.height()/2;
 
@@ -267,6 +357,12 @@
   //////////////////
   class Collision {
   //////////////////
+    constructor(lScoredCallback, rScoredCallback, randomizeCallback) {
+      this.lScoredCallback = lScoredCallback;
+      this.rScoredCallback = rScoredCallback;
+      this.randomizeCallback = randomizeCallback;
+    }
+
     paddleCollision(x, y, r) {
       var pad = Ball.radius() * 0.4;
       return y >= pPaddle.y-pad && y <= pPaddle.y+Paddle.height()+pad && x-r < 0+Paddle.width() // player's
@@ -293,15 +389,15 @@
         if (x - r < 0 || x + r > cWidth) {
           // SCORE SCORE SCORE
           // note the score
-          if (x -r < 0) cPaddle.scored();
-          else pPaddle.scored();
+          if (x - r < 0) this.rScoredCallback.call(cPaddle);//cPaddle.scored();
+          else this.lScoredCallback.call(pPaddle);//pPaddle.scored();
 
           // stop play and move ball to center of midline
           stop = true;
           ball.x = cWidth / 2;
           ball.y = cHeight / 2;
           // random direction and speed
-          ball.randomizeVelocity();
+          this.randomizeCallback.call(ball);//ball.randomizeVelocity();
         }
       }
       // top/bottom collision, bounce
@@ -352,58 +448,181 @@
       cPaddle.y = (cHeight-Paddle.height()) / 2;
     }
 
-    // build canvas
-    canvas = document.getElementById("canvas");
-    canvas.width = cWidth;
-    canvas.height = cHeight;
-    context = canvas.getContext("2d");
+    function buildCanvas() {
+      // build canvas
+      canvas = document.getElementById("canvas");
+      canvas.width = cWidth;
+      canvas.height = cHeight;
+      context = canvas.getContext("2d");
+    }
 
-    // move player's paddle on keydown
-    window.addEventListener('keydown', function(event) {
-      if (gameOver) {
-        gameOver = false;
-        stop = true;
-        cPaddle.score = 0;
-        pPaddle.score = 0;
-        clearWonLost();
-        background.whichSideScored(Side.NONE);
-        centerPaddles();
-        return;
+    function kbdListener() {
+      // move player's paddle on keydown
+      window.addEventListener('keydown', function(event) {
+        if (gameOver) {
+          gameOver = false;
+          stop = true;
+          cPaddle.score = 0;
+          pPaddle.score = 0;
+          clearWonLost();
+          background.whichSideScored(Side.NONE);
+          centerPaddles();
+          return;
+        }
+        // if computer has the keyboard and playing computer, leave
+        if (!pKbd && computer) return;
+
+        var paddle = pKbd ? pPaddle : cPaddle;
+
+        switch(event.keyCode) {
+          case 32: //spacebar
+            stop = false; // start play
+            break;
+          case 38: //paddle up
+            paddle.move(-10);
+            break;
+          case 40: //paddle down
+            paddle.move(10);
+            break;
+        }
+      });
+    }
+
+    function mouseClickListener() {
+      function clickInputInRange(x, y, p) {
+        if (x >= p.mx && x <= p.mx+p.mw && y >= p.my && y <= p.my+p.mh) return Input.MOUSE
+        else if (x >= p.kx && x <= p.kx+p.kw && y >= p.ky && y <= p.ky+p.kh) return Input.KBD;
+        return Input.NONE;
       }
-      switch(event.keyCode) {
-        case 32: //spacebar
-          stop = false; // start play
-          break;
-        case 38: //up
-          pPaddle.move(-10);
-          break;
-        case 40: //down
-          pPaddle.move(10);
-          break;
+
+      function clickVsInRange(x, y, p) {
+        if (x >= p.cx && x <= p.cx+p.cw && y >= p.cy && y <= p.cy+p.ch) return Side.COMPUTER
+        else if (x >= p.px && x <= p.px+p.pw && y >= p.py && y <= p.py+p.ph) return Side.PLAYER;
+        return Side.NONE;
       }
-    });
 
-    // start game on click
-    window.addEventListener('click', function(event) {
-      if (gameOver) return;
+      function selectInput(side, input) {
+        if (side === Side.PLAYER) {
+          pKbd = input === Input.KBD;
+        }
+        else {
+          pKbd = input !== Input.KBD;
+        }
+      }
 
-      stop = false;
-    });
+      function selectVs(side) {
+        computer = side === Side.COMPUTER;
+      }
 
-    // create paddles and ball
-    pPaddle = new Paddle(0, (cHeight-Paddle.height())/2);
-    cPaddle = new ComputerPaddle(cWidth-Paddle.width(), (cHeight-Paddle.height())/2);
-    ball = new Ball((cWidth-Ball.radius()*2)/2, (cHeight-Ball.radius()*2)/2);
-    collision = new Collision();
-    background = new Background();
+      // start game on click
+      window.addEventListener('click', function(event) {
+        // mouse/kbd select
+        canvasRect = canvas.getBoundingClientRect();
+        var x = event.clientX - canvasRect.left;
+        var y = event.clientY - canvasRect.top;
+
+        var cInput = null;
+        var pInput = clickInputInRange(x, y, background.getPlayerInputDims());
+        // player clicked on mouse or kbd
+        if (pInput !== Input.NONE) {
+          selectInput(Side.PLAYER, pInput);
+          return;
+        }
+        else {
+          cInput = clickInputInRange(x, y, background.getComputerInputDims());
+          // computer clicked on mouse or kbd
+          if (cInput !== Input.NONE) {
+            selectInput(Side.COMPUTER, cInput);
+            return;
+          }
+        }
+
+        // computer or player select
+        var side = clickVsInRange(x, y, background.getVsDims());
+        if (side !== Side.NONE) {
+          selectVs(side);
+          return;
+        }
+
+        // ignore click events if game over
+        if (gameOver) return;
+
+        stop = false;         // start play
+      });
+    }
+
+    function mouseMoveListener() {
+      window.addEventListener('mousemove', function(event) {
+        // if computer has the mouse and playing computer, leave
+        if (pKbd && computer) return;
+
+        var paddle = pKbd ? cPaddle : pPaddle;
+        var dir = event.screenY - lastY;
+        paddle.move(dir > 0 ? 10 : dir === 0 ? 0 : -10);
+        lastY = event.screenY;
+      });
+    }
+
+    function addListeners() {
+      kbdListener();
+      mouseClickListener();
+      mouseMoveListener();
+    }
+
+    function createGameElements() {
+      // create paddles and ball
+      pPaddle = new Paddle(0, (cHeight-Paddle.height())/2);
+      cPaddle = new ComputerPaddle(cWidth-Paddle.width(), (cHeight-Paddle.height())/2);
+      ball = new Ball((cWidth-Ball.radius()*2)/2, (cHeight-Ball.radius()*2)/2);
+
+      // bg
+      background = new Background();
+
+      // ball sprite
+      var xy = Ball.radius()*2;
+      var imgBall = new Image(xy, xy);
+      imgBall.src = 'images/ball.png';
+      ballSprite = new Sprite(imgBall, xy, xy);
+
+      // player mouse sprite
+      var imgMouse = new Image(25, 25);
+      pMouseSprite = new Sprite(imgMouse, 25, 25);
+      // player kbd sprite
+      var imgKbd = new Image(25, 25);
+      pKbdSprite = new Sprite(imgKbd, 25, 25);
+      // get images
+      background.selectKbdMouseImage(imgMouse, imgKbd, pKbd);
+
+      // computer mouse sprite
+      imgMouse = new Image(25, 25);
+      cMouseSprite = new Sprite(imgMouse, 25, 25);
+      // computer kbd sprite
+      imgKbd = new Image(25, 25);
+      cKbdSprite = new Sprite(imgKbd, 25, 25);
+      // get images
+      background.selectKbdMouseImage(imgMouse, imgKbd, !pKbd);
+
+      //computer
+      var imgComputer = new Image(25, 25);
+      computerSprite = new Sprite(imgComputer, 25, 25);
+      //player
+      var imgPlayer = new Image(25, 25);
+      playerSprite = new Sprite(imgPlayer, 25, 25);
+      // get images
+      background.selectVsImage(imgComputer, imgPlayer, computer);
+
+      // create collision detection
+      collision = new Collision(pPaddle.scored, cPaddle.scored, ball.randomizeVelocity);
+    }
+
+    ///////////////////////////////////
+    // do the work
+    ///////////////////////////////////
+    buildCanvas();
+    addListeners();
+    createGameElements();
     clearWonLost();
-
-    var xy = Ball.radius()*2;
-    var img = new Image(xy, xy);
-    img.src = 'images/ball.png';
-    ballSprite = new Sprite(img, xy, xy);
-
-    // get animation frame
+    // run step() at every animation frame, god help us otherwise
     window.requestAnimationFrame(step) || function(step) {
       window.setTimeout(step, 1000/60);
     }

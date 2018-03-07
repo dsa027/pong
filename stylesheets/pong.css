@@ -3,18 +3,17 @@
 }
 #canvas {
   border: 1px solid black;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  box-sizing: content-box;
 }
 #title {
   font-size: 48px;
   color: darkblue;
   text-align: center;
-}
-#canvas {
-    padding-left: 0;
-    padding-right: 0;
-    margin-left: auto;
-    margin-right: auto;
-    display: block;
 }
 #score {
   margin-top: 16px;
