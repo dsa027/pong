@@ -1,27 +1,22 @@
 (function() {
+  var cWidth = 480, cHeight = 300; // screen dimesions
   var canvas = null;
   var context = null;
   var canvasRect = null; // dims where the canvas is on the page
   var collisions = null;  // collision detection system
   var background = null;  // background object
   var pPaddle, cPaddle, ball; // game playing elements
+  var easy, medium, hard; // levels
   var pKbd = false, computer = true; // using kbd=true or mouse=false; person/computer
   var ballSprite, paddleSprite, pMouseSprite, pKbdSprite,
       cMouseSprite, cKbdSprite, playerSprite, computerSprite; // game sprites
-  var easy, medium, hard; // levels
-  var pSound, cSound; // sounds for play
-  var cWidth = 480, cHeight = 300; // screen dimesions
   var stop = true; // stop play (don't animate moving objects)
   var gameOver = false; //
-  var flashInterval = 30; // flashing text at this fps
-  var flashing = true;  // are we showing text now?
-  var flashCount = 0; // how long we have been within a flashInterval
-  var lastY = -1; // for mouse, where we were at last mouse move on y axis
-  var pHitCount = 0, cHitCount = 0;
 
-  var Side = {'COMPUTER': 'computer', 'PLAYER': 'player', 'NONE': 'none'};
-  var Input = {'MOUSE': 'mouse', 'KBD': 'kbd', 'NONE': 'none'};
-  var Level = {'EASY': 'Easy', 'MEDIUM': 'Medium', 'HARD': 'Hard', 'NONE': 'none'};
+  var Side = {'COMPUTER': 'COMPUTER', 'PLAYER': 'PLAYER', 'NONE': 'NONE'};
+  var Input = {'MOUSE': 'MOUSE', 'KBD': 'KBD', 'NONE': 'NONE'};
+  var Level = {'EASY': 'EASY', 'MEDIUM': 'MEDIUM', 'HARD': 'HARD', 'NONE': 'NONE'};
+  var LevelTitles = {'EASY': 'Easy', 'MEDIUM': 'Medium', 'HARD': 'Hard', 'NONE': 'None'};
   var level = Level.EASY;
   var maxScore = 11; //
 
@@ -62,6 +57,25 @@
   }
 
   //////////////////
+  class Flash {
+  //////////////////
+    constructor(interval) {
+      this.flashInterval = interval;
+      this.flashCount = 0;
+      this.flashing = true;
+    }
+
+    check() {
+      if (++this.flashCount >= this.flashInterval) {
+        this.flashCount = 0;
+        this.flashing = !this.flashing;
+      }
+
+      return this.flashing;
+    }
+  }
+
+  //////////////////
   class Background {
   //////////////////
     constructor() {
@@ -69,6 +83,7 @@
       image.src = 'images/bg.png';
       this.sprite = new Sprite(image, cWidth, cHeight);
       this.justScored = Side.NONE;
+      this.gameOverFlash = new Flash(30);
     }
 
     render() {
@@ -108,9 +123,9 @@
 
     getLevelDims() {
       return {
-        ex: easy.x, ey: easy.y, ew: easy.textLength, eh: easy.size,
-        mx: medium.x, my: medium.y, mw: medium.textLength, mh: medium.size,
-        hx: hard.x, hy: hard.y, hw: hard.textLength, hh: hard.size,
+        0: {x: easy.x, y: easy.y, w: easy.textLength, h: easy.size},
+        1: {x: medium.x, y: medium.y, w: medium.textLength, h: medium.size},
+        2: {x: hard.x, y: hard.y, w: hard.textLength, h: hard.size}
       }
     }
 
@@ -125,9 +140,9 @@
       var p = this.getVsDims();
       this.selectVsImage(computerSprite.image, playerSprite.image, computer);
 
-      context.drawImage(computerSprite.image, p.cx, p.cy, p.cw, p.ch);
-      context.fillText("/", p.px-7, p.py+fontSize-8);
-      context.drawImage(playerSprite.image, p.px, p.py, p.pw, p.ph);
+      context.drawImage(computerSprite.image, p[0].x, p[0].y, p[0].w, p[0].h);
+      context.fillText("/", p[1].x-7, p[1].y+fontSize-8);
+      context.drawImage(playerSprite.image, p[1].x, p[1].y, p[1].w, p[1].h);
     }
 
     selectVsImage(imgComputer, imgPlayer, computer) {
@@ -137,8 +152,8 @@
 
     getVsDims() {
       return {
-        cx: cWidth*5/6, cy: 3, cw: computerSprite.width, ch: computerSprite.height,
-        px: cWidth*5/6+playerSprite.width+12, py: 3, pw: playerSprite.width, ph: playerSprite.height
+        0: {x: cWidth*5/6, y: 3, w: computerSprite.width, h: computerSprite.height},
+        1: {x: cWidth*5/6+playerSprite.width+12, y: 3, w: playerSprite.width, h: playerSprite.height}
       }
     }
 
@@ -159,21 +174,21 @@
 
       this.selectKbdMouseImage(mouse, kbd, (side === Side.PLAYER ? pKbd : !pKbd));
 
-      context.drawImage(mouse, p.mx, p.my, p.mw, p.mh);
-      context.fillText("/", p.mx+p.mw+1, p.my+p.mh);
-      context.drawImage(kbd, p.kx, p.ky, p.kw, p.kh);
+      context.drawImage(mouse, p[0].x, p[0].y, p[0].w, p[0].h);
+      context.fillText("/", p[0].x+p[0].w+1, p[0].y+p[0].h);
+      context.drawImage(kbd, p[1].x, p[1].y, p[1].w, p[1].h);
     }
 
     getPlayerInputDims() {
       return {
-        mx: cWidth/6, my: cHeight - pMouseSprite.height - 5, mw: pMouseSprite.width, mh: pMouseSprite.height,
-        kx: cWidth/6+this.getKeyMousePad()+pMouseSprite.width, ky: cHeight - pKbdSprite.height - 5, kw: pKbdSprite.width, kh: pKbdSprite.height
+        0: {x: cWidth/6, y: cHeight - pMouseSprite.height - 5, w: pMouseSprite.width, h: pMouseSprite.height},
+        1: {x: cWidth/6+this.getKeyMousePad()+pMouseSprite.width, y: cHeight - pKbdSprite.height - 5, w: pKbdSprite.width, h: pKbdSprite.height}
       };
     }
     getComputerInputDims() {
       return {
-        mx: cWidth*4/6, my: cHeight - cMouseSprite.height - 5, mw: cMouseSprite.width, mh: cMouseSprite.height,
-        kx: cWidth*4/6+this.getKeyMousePad()+cMouseSprite.width, ky: cHeight - cKbdSprite.height - 5, kw: cKbdSprite.width, kh: cKbdSprite.height
+        0: {x: cWidth*4/6, y: cHeight - cMouseSprite.height - 5, w: cMouseSprite.width, h: cMouseSprite.height},
+        1: {x: cWidth*4/6+this.getKeyMousePad()+cMouseSprite.width, y: cHeight - cKbdSprite.height - 5, w: cKbdSprite.width, h: cKbdSprite.height}
       };
     }
 
@@ -192,11 +207,8 @@
     }
 
     showGameOver() {
-      if (++flashCount >= flashInterval) {
-        flashCount = 0;
-        flashing = !flashing;
-      }
-      if (!flashing) return;
+      // don't show elements unless flashing === true
+      if (!this.gameOverFlash.check()) return;
 
       var fontSize = 76;
       context.font = `${fontSize}px sans-serif`;
@@ -227,10 +239,10 @@
     }
 
     whichSideScored(val) {
-      if (!val) {
+      if (!val) { // read
         return this.justScored
       }
-      else {
+      else {  // write
         this.justScored = val;
       }
     }
@@ -298,12 +310,7 @@
       }
     }
 
-    clearPaddle() {
-      context.clearRect(this.x-1, this.y-1, Paddle.width()+2, Paddle.height()+2);
-    }
-
     move(y) {
-      // this.clearPaddle();
       // move up/down
       this.y += y;
 
@@ -361,6 +368,13 @@
         this.selectVelocity();
     }
 
+    resetBall() {
+      ball.x = cWidth / 2;
+      ball.y = cHeight / 2;
+      // random direction and speed
+      this.selectVelocity();//ball.selectVelocity();
+    }
+
     normalServeAngle(x) {
       x += 90; // 0 degrees points right
       return (x >= 55 && x <= 125) || (x >= 235 && x <= 305)
@@ -398,11 +412,6 @@
     // move y
     yPlusDelta() { return this.y + this.deltaY(); }
 
-    clearBall() {
-      var r = Ball.radius();
-      context.clearRect(this.x-r-1, this.y-r-1, r*2+2, r*2+2);
-    }
-
     move() {
       collision.detectCollision();
 
@@ -415,26 +424,33 @@
     }
 
     drawBall() {
-      this.drawBallSprite();
-    }
-
-    drawBallSprite() {
-      context.drawImage(
+      context.drawImage (
         ballSprite.image,
         this.x-Ball.radius(),
         this.y-Ball.radius(),
         ballSprite.width,
-        ballSprite.height);
+        ballSprite.height
+      );
     }
   } // BALL
 
   //////////////////
   class Collision {
   //////////////////
-    constructor(lScoredCallback, rScoredCallback, randomizeCallback) {
-      this.lScoredCallback = lScoredCallback;
-      this.rScoredCallback = rScoredCallback;
-      this.randomizeCallback = randomizeCallback;
+    constructor(lScored, rScored) {
+      this.lScored = lScored;
+      this.rScored = rScored;
+
+      // sounds
+      this.pSound = new Audio('sounds/ping1.wav');
+      this.cSound = new Audio('sounds/ping2.wav');
+
+      this.resetHitCount();
+    }
+
+    resetHitCount() {
+      this.pHitCount = 0;
+      this.cHitCount = 0;
     }
 
     paddleCollision(x, y, r) {
@@ -456,16 +472,16 @@
       // collision with paddle? Bounce.
       if (this.paddleCollision(x, y, r)) {
         if (x - r < 0 + Paddle.width()) {
-          pSound.play()
-          pHitCount++;
+          this.pSound.play();
+          this.pHitCount++;  // for speeding up ball on every hit
         }
         else {
-          cSound.play();
-          cHitCount++;
+          this.cSound.play();
+          this.cHitCount++;
         }
 
         // increase speed at every paddle hit in medium and hard level
-        if (level !== Level.EASY && pHitCount + (computer ? 0 : cHitCount) > (computer ? 5 : 10)) {
+        if (this.pHitCount > 5) {
           ball.speed += 0.25;
         }
 
@@ -476,18 +492,17 @@
         // Player didn't hit ball
         if (x - r < 0 || x + r > cWidth) {
           // SCORE SCORE SCORE
-          // note the score
-          if (x - r < 0) this.rScoredCallback.call(cPaddle);//cPaddle.scored();
-          else this.lScoredCallback.call(pPaddle);//pPaddle.scored();
+          if (x - r < 0) {
+            this.rScored.call(cPaddle);
+          }
+          else {
+            this.lScored.call(pPaddle);
+          }
 
           // stop play and move ball to center of midline
           stop = true;
-          pHitCount = 0;
-          cHitCount = 0;
-          ball.x = cWidth / 2;
-          ball.y = cHeight / 2;
-          // random direction and speed
-          this.randomizeCallback.call(ball);//ball.selectVelocity();
+          collision.resetHitCount();
+          ball.resetBall();
         }
       }
       // top/bottom collision, bounce
@@ -563,7 +578,6 @@
         if (!pKbd && computer) return;
 
         var paddle = pKbd ? pPaddle : cPaddle;
-
         switch(event.keyCode) {
           case 32: //spacebar
             stop = false; // start play
@@ -579,23 +593,31 @@
     }
 
     function mouseClickListener() {
-      function clickInputInRange(x, y, p) {
-        if (x >= p.mx && x <= p.mx+p.mw && y >= p.my && y <= p.my+p.mh) return Input.MOUSE
-        else if (x >= p.kx && x <= p.kx+p.kw && y >= p.ky && y <= p.ky+p.kh) return Input.KBD;
-        return Input.NONE;
-      }
+      this.lastY = -1;
 
-      function clickVsInRange(x, y, p) {
-        if (x >= p.cx && x <= p.cx+p.cw && y >= p.cy && y <= p.cy+p.ch) return Side.COMPUTER
-        else if (x >= p.px && x <= p.px+p.pw && y >= p.py && y <= p.py+p.ph) return Side.PLAYER;
-        return Side.NONE;
-      }
+      // is (x,y) in rect p:(x,y,w,h)?
+      function isIn(x, y, p) {
+        if (x >= p.x
+            && x <= p.x + p.w
+            && y >= p.y
+            && y <= p.y + p.h) {
+          return true;
+        }
 
-      function clickLevelInRange(x, y, p) {
-        if (x >= p.ex && x <= p.ex+p.ew && y >= p.ey && y <= p.ey+p.eh) return Level.EASY
-        else if (x >= p.mx && x <= p.mx+p.mw && y >= p.my && y <= p.my+p.mh) return Level.MEDIUM
-        else if (x >= p.hx && x <= p.hx+p.hw && y >= p.hy && y <= p.hy+p.hh) return Level.HARD;
-        return Level.NONE;
+        return false;
+      }
+      // is x,y in rect p?
+      function clickInRect(x, y, p, type) {
+        var types = Object.entries(type);
+        var ps = Object.entries(p);
+        // for each entry in p (each p is a button/screen element)
+        for (var i = 0; i < ps.length; i++) {
+          if (isIn(x, y, ps[i][1])) {
+            // yes, clicked in this element, return element type
+            return types[i][0];
+          }
+        }
+        return type.NONE;
       }
 
       function selectInput(side, input) {
@@ -611,60 +633,84 @@
         computer = side === Side.COMPUTER;
       }
 
-      // start game on click, or click on canvas elements
-      window.addEventListener('click', function(event) {
-        // mouse/kbd select
-        canvasRect = canvas.getBoundingClientRect();
-        var x = event.clientX - canvasRect.left;
-        var y = event.clientY - canvasRect.top;
-
+      function checkForInputSelect(x, y) {
         var cInput = null;
-        var pInput = clickInputInRange(x, y, background.getPlayerInputDims());
+        var pInput = clickInRect(x, y, background.getPlayerInputDims(), Input);
         // player clicked on mouse or kbd
         if (pInput !== Input.NONE) {
           selectInput(Side.PLAYER, pInput);
-          return;
+          return true;
         }
         else {
-          cInput = clickInputInRange(x, y, background.getComputerInputDims());
+          cInput = clickInRect(x, y, background.getComputerInputDims(), Input);
           // computer clicked on mouse or kbd
           if (cInput !== Input.NONE) {
             selectInput(Side.COMPUTER, cInput);
-            return;
+            return true;
           }
         }
 
-        // computer or player select
-        var side = clickVsInRange(x, y, background.getVsDims());
+        return false;
+      }
+
+      function checkForVsSelect(x, y) {
+        var side = clickInRect(x, y, background.getVsDims(), Side);
         if (side !== Side.NONE) {
           selectVs(side);
-          return;
+          return true;
         }
 
-        function getLevelButton() {
+        return false;
+      }
+
+      function checkForLevelSelect(x, y) {
+        function getLevelButton(x, y) {
           return button = level === Level.EASY ? easy : level === Level.MEDIUM ? medium : hard;
         }
         function selectLevel() {
-          getLevelButton().select();
+          getLevelButton().select(x, y);
         }
         function unselectLevel() {
-          getLevelButton().unselect();
+          getLevelButton().unselect(x, y);
         }
 
         // level easy, medium, hard
-        var lev = clickLevelInRange(x, y, background.getLevelDims());
+        var lev = clickInRect(x, y, background.getLevelDims(), Level);
         if (lev !== Level.NONE) {
           unselectLevel();
           level = lev;
           selectLevel();
           ball.selectSpeed();
-          return;
+          return true;
+        }
+
+        return false;
+      }
+
+      // start game on click, or click on canvas elements
+      window.addEventListener('click', function(event) {
+        canvasRect = canvas.getBoundingClientRect();
+        var x = event.clientX - canvasRect.left;
+        var y = event.clientY - canvasRect.top;
+
+        // mouse/kbd select
+        var buttonSelected = checkForInputSelect(x, y);
+
+        // computer or player select
+        if (!buttonSelected) {
+          buttonSelected = checkForVsSelect(x, y);
+        }
+
+        // game level
+        if (!buttonSelected) {
+          buttonSelected = checkForLevelSelect(x, y);
         }
 
         // ignore click events if game over
-        if (gameOver) return;
-
-        stop = false;         // start play
+        if (!buttonSelected) {
+          if (gameOver) return;
+          stop = false;         // start play
+        }
       });
     }
 
@@ -674,9 +720,9 @@
         if (pKbd && computer) return;
 
         var paddle = pKbd ? cPaddle : pPaddle;
-        var dir = event.screenY - lastY;
+        var dir = event.screenY - this.lastY;
         paddle.move(dir > 0 ? 10 : dir === 0 ? 0 : -10);
-        lastY = event.screenY;
+        this.lastY = event.screenY;
       });
     }
 
@@ -719,19 +765,19 @@
       // get images
       background.selectKbdMouseImage(imgMouse, imgKbd, !pKbd);
 
-      //computer
+      //computer or player 2
       var imgComputer = new Image(25, 25);
       computerSprite = new Sprite(imgComputer, 25, 25);
-      //player
+      //player 2
       var imgPlayer = new Image(25, 25);
       playerSprite = new Sprite(imgPlayer, 25, 25);
       // get images
       background.selectVsImage(imgComputer, imgPlayer, computer);
 
       //easy, medium, hard
-      easy = new Button(0, 12, 'palegreen', Level.EASY, 12);
-      medium = new Button(0, 12, 'yellow', Level.MEDIUM, 12);
-      hard = new Button(0, 12, 'red', Level.HARD, 12);
+      easy = new Button(0, 12, 'palegreen', LevelTitles.EASY, 12);
+      medium = new Button(0, 12, 'yellow', LevelTitles.MEDIUM, 12);
+      hard = new Button(0, 12, 'red', LevelTitles.HARD, 12);
       // need to create buttons first, then figure x out after because new sets textLength
       var start = (cWidth - (easy.textLength + medium.textLength + hard.textLength + 40)) / 2;
       easy.x = start;
@@ -740,19 +786,15 @@
       easy.selected = true;
 
       // create collision detection
-      collision = new Collision(pPaddle.scored, cPaddle.scored, ball.selectVelocity);
-
-      // sounds
-      pSound = new Audio('sounds/ping1.wav');
-      cSound = new Audio('sounds/ping2.wav');
+      collision = new Collision(pPaddle.scored, cPaddle.scored);
     }
 
     ///////////////////////////////////
     // do the work
     ///////////////////////////////////
     buildCanvas();
-    addListeners();
     createGameElements();
+    addListeners();
     clearWonLost();
     // run step() at every animation frame, god help us otherwise
     window.requestAnimationFrame(step) || function(step) {
